@@ -1,6 +1,7 @@
 const PLUGIN_ID = 'locator_model_renderer';
+const PLUGIN_VERSION = '1.0.0';
 
-//#region Item Model Parser
+//#region Project Model Parser
 
 class LocatorModelParser {
     constructor(project) {
@@ -33,17 +34,20 @@ class LocatorModelParser {
 
     applyDisplayContext(displayContext) {
         // display context stuff
-        this.selectedModel.applyMatrix4(new THREE.Matrix4().makeScale(
+        this.selectedModel.applyMatrix4(new THREE.Matrix4()
+        .makeScale(
             displayContext.scale[0],
             displayContext.scale[1],
             displayContext.scale[2]
         ));
-        this.selectedModel.applyMatrix4(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(
+        this.selectedModel.applyMatrix4(new THREE.Matrix4()
+        .makeRotationFromEuler(new THREE.Euler(
             displayContext.rotation[0] * (Math.PI / 180),
             displayContext.rotation[1] * (Math.PI / 180),
             displayContext.rotation[2] * (Math.PI / 180)
         )));
-        this.selectedModel.applyMatrix4(new THREE.Matrix4().makeTranslation(
+        this.selectedModel.applyMatrix4(new THREE.Matrix4()
+        .makeTranslation(
             displayContext.translation[0],
             displayContext.translation[1],
             displayContext.translation[2]
@@ -93,7 +97,7 @@ class LocatorModelParser {
 
 
 
-//#region Model Renderer
+//#region Model Rendering
 class ModelRenderer {
     constructor() {
         if (Project){
@@ -138,16 +142,16 @@ class ModelRenderer {
 
     setupUI() {
         const self = this;
-
+        //todo clean up panel ui, probably lots of redundant logic here but I don't want to touch it cause it works
         this.panel = new Panel(PLUGIN_ID, {
             id: PLUGIN_ID,
             name: 'Locator Model Renderer',
             default_position: 'bottom',
             component: Vue.extend({
-                template: PANEL_UI,
+                template: PANEL_HTML,
                 data() {
                     return {
-                        projectType: Project.format.id,
+                        projectType: (Project)?Project.format.id:"",
                         selected: Project.selectedProject,
                         context: Project.selectedDisplayContext,
                         locator: Project.selectedLocator,
@@ -164,9 +168,6 @@ class ModelRenderer {
                     },
                     getContexts() {
                         return this.selected.display_settings;
-                    },
-                    getLocators() {
-                        return this.locators;
                     }
                 },
                 methods: {
@@ -184,7 +185,7 @@ class ModelRenderer {
                         if(this.locator && this.selected) {
                             this.isSeat =  /^seat_\d+$/.test(this.locator.name); // set scale if seat locator is selected
                             if ((this.locator.name === "item_hat" || this.locator.name === "item_face") && this.selected.display_settings.head) Project.selectedDisplayContext = this.selected.display_settings.head;
-                            //else if ((this.locator.name === "item") && this.selected.display_settings.thirdperson_righthand) Project.selectedDisplayContext = this.selected.display_settings.thirdperson_righthand;
+                            else if (this.locator.name === "item" && this.selected.display_settings.thirdperson_righthand) Project.selectedDisplayContext = this.selected.display_settings.thirdperson_righthand;
                             else if (this.selected.display_settings.fixed) Project.selectedDisplayContext = this.selected.display_settings.fixed;
                             Project.modelScale = 1.0;
                             this.updateSettings();                            
@@ -236,10 +237,11 @@ class ModelRenderer {
             if (p.locatorModel) {
                 p.locatorModel.dispose();
             }
-            p.locatorModel = undefined;
             p.selectedProject = undefined;
             p.selectedDisplayContext = undefined;
             p.selectedLocator = undefined;
+            p.locatorModel = undefined;
+            p.modelScale = undefined;
         })
     }
 }
@@ -249,11 +251,11 @@ class ModelRenderer {
 
 
 
-//#region Panel UI
+//#region Panel HTML
 // Main
-const PANEL_UI =
+const PANEL_HTML =
 `
-<template v-if="projectType === 'bedrock'">
+<template v-if="projectType !== 'java_block' && projectType !== 'modded_entity'">
     <div class="bedrock-item-renderer" style="margin-left: 20px;">
     
         <div class="status">
@@ -287,7 +289,7 @@ const PANEL_UI =
                     <select id="locator" v-model="locator" @change="onLocatorSelect">
                         <option :value="null">None</option>
                         <option 
-                        v-for="locator in getLocators" 
+                        v-for="locator in locators" 
                         :value="locator"
                         >
                         {{ locator.name || 'Untitled' }}
@@ -328,6 +330,7 @@ const PANEL_UI =
 `;
 //#endregion
 
+//#region Action buttons
 const universal_locators = [
     "root",
     "top",
@@ -342,7 +345,102 @@ const universal_locators = [
     "item_face"
 ];
 
-// Register the plugin
+function createActionButtons() {
+    hide_locator_btn = new Toggle('hide_locators', {
+        name: 'Hide Locators',
+        description: 'Hides all the locators on the model.',
+        icon: 'visibility',
+        onChange(value) {
+            Undo.initEdit({elements: Locator.all});
+            Locator.all.forEach(locator => {
+                locator.visibility = !value;
+            });
+            Canvas.updateVisibility();
+            Undo.finishEdit('Locators Hidden');
+        }
+    });
+
+    swap_primary_btn = new Action('swap_primary', {
+        name: 'Rename Locators',
+        description: 'Flips the name of locators that end with Primary/Secondary',
+        icon: 'sync_alt',
+        click: function() {
+            Undo.initEdit({elements: Locator.selected});
+            function rename(str) {
+                return str.replace(
+                    /_(primary|secondary|left|right)(\d*)$/,
+                    (match, p1, p2) => {
+                        const swaps = { primary: 'secondary', secondary: 'primary', left: 'right', right: 'left'};
+                        return `_${swaps[p1]}${p2}`;
+                    }
+                );
+            }
+
+            Locator.selected.forEach(locator => {
+                if (locator.parent.name.startsWith("locator_")) {
+                    locator.parent.name = rename(locator.parent.name);
+                    locator.parent.createUniqueName();
+                }
+                locator.name = rename(locator.name);
+                locator.createUniqueName();
+                
+            });
+            Canvas.updateAll();
+            Undo.finishEdit('Flipped Locator');
+        }
+    });
+
+    folder_locator_btn = new Action('locator_folder', {
+        name: 'Create Locator Folder',
+        description: 'Adds all selected locators into their own folder prefixed with "locator_".',
+        icon: 'folder',
+        click: function() {
+            Undo.initEdit({elements: Locator.selected});
+            Locator.selected.forEach(locator => {
+                if (locator.parent.name != "locator_"+locator.name){
+                    bone = new Group("locator_"+locator.name).init();
+                    bone.addTo(locator.parent);
+                    locator.addTo(bone);
+                    bone.origin = getSelectionCenter();
+                }
+                else Blockbench.showQuickMessage(`'${locator.name}' is already in a folder.`, 1500)
+            });
+            Undo.finishEdit('Create Locator Folder');
+        }
+    });
+
+    check_locator_btn = new Action('check_universal_locators', {
+        name: 'Check Locators',
+        description: 'Checks this model for universal locators.',
+        icon: 'sentiment_satisfied',
+        click: function() { 
+            const allLocatorNames = Locator.all.map(locator => locator.name);
+            const missingLocators = universal_locators.filter(universalName => {
+                const regex = new RegExp(`^${universalName}\\d*$`);
+                return !allLocatorNames.some(name => regex.test(name));
+            });
+
+            if (missingLocators.length === 0) Blockbench.showQuickMessage(`No missing locators :)`, 2000);
+            else Blockbench.showQuickMessage(`Locators Missing: ${missingLocators}`, 3500);
+
+            Blockbench.showStatusMessage(`Total Locators: ${allLocatorNames.length}`, 2000)
+        }
+    });
+
+    MenuBar.addAction(hide_locator_btn, 'filter');
+    MenuBar.addAction(swap_primary_btn, 'filter');
+    MenuBar.addAction(folder_locator_btn, 'filter');
+    MenuBar.addAction(check_locator_btn, 'filter');
+}
+function deleteActionButtons() {
+    hide_locator_btn.delete();
+    swap_primary_btn.delete();
+    folder_locator_btn.delete();
+    check_locator_btn.delete();
+}
+//#endregion
+
+//#region Register plugin
 BBPlugin.register(PLUGIN_ID, {
     title: 'Locator Model Renderer',
     author: 'Josh',
@@ -353,110 +451,19 @@ BBPlugin.register(PLUGIN_ID, {
     After that you can select from any other open Model Project.
     The selected Model will render on a selected Locator.
     This plugin was made for Cobblemon models, but should work with other bedrock entity models.`,
-    icon: 'person_play',
-    version: '1.0.0',
-    min_version: '4.0.0',
+    icon: 'icon.png',
+    version: PLUGIN_VERSION,
+    min_version: '4.8.0',
     variant: 'both',
     onload() {
-        this.renderer = new BedrockItemRenderer();
+        this.renderer = new ModelRenderer();
         this.renderer.init();
-        //#region Action buttons
-        hide_locator_btn = new Toggle('hide_locators', {
-            name: 'Hide Locators',
-            description: 'Hides all the locators on the model.',
-            icon: 'visibility',
-            onChange(value) {
-                Undo.initEdit({elements: Locator.all});
-                Locator.all.forEach(locator => {
-                    locator.visibility = !value;
-                });
-                Canvas.updateVisibility();
-                Undo.finishEdit('Locators Hidden');
-            }
-        });
-
-        swap_primary_btn = new Action('swap_primary', {
-            name: 'Rename Locators',
-            description: 'Flips the name of locators that end with Primary/Secondary',
-            icon: 'sync_alt',
-            click: function() {
-                Undo.initEdit({elements: Locator.selected});
-                function rename(str) {
-                    return str.replace(
-                        /_(primary|secondary|left|right)(\d*)$/,
-                        (match, p1, p2) => {
-                            const swaps = { primary: 'secondary', secondary: 'primary', left: 'right', right: 'left'};
-                            return `_${swaps[p1]}${p2}`;
-                        }
-                    );
-                }
-
-                Locator.selected.forEach(locator => {
-                    if (locator.parent.name.startsWith("locator_")) {
-                        locator.parent.name = rename(locator.parent.name);
-                        locator.parent.createUniqueName();
-                    }
-                    locator.name = rename(locator.name);
-                    locator.createUniqueName();
-                    
-                });
-                Canvas.updateAll();
-                Undo.finishEdit('Flipped Locator');
-            }
-        });
-
-        folder_locator_btn = new Action('locator_folder', {
-            name: 'Create Locator Folder',
-            description: 'Adds all selected locators into their own folder prefixed with "locator_".',
-            icon: 'folder',
-            click: function() {
-                Undo.initEdit({elements: Locator.selected});
-                Locator.selected.forEach(locator => {
-                    if (locator.parent.name != "locator_"+locator.name){
-                        bone = new Group("locator_"+locator.name).init();
-                        bone.addTo(locator.parent);
-                        locator.addTo(bone);
-                        bone.origin = getSelectionCenter();
-                    }
-                    else Blockbench.showQuickMessage(`'${locator.name}' is already in a folder.`, 1500)
-                });
-                Undo.finishEdit('Create Locator Folder');
-            }
-        });
-
-        check_locator_btn = new Action('check_universal_locators', {
-            name: 'Check Locators',
-            description: 'Checks this model for universal locators.',
-            icon: 'sentiment_satisfied',
-            click: function() { 
-                const allLocatorNames = Locator.all.map(locator => locator.name);
-                const missingLocators = universal_locators.filter(universalName => {
-                    const regex = new RegExp(`^${universalName}\\d*$`);
-                    return !allLocatorNames.some(name => regex.test(name));
-                });
-
-                if (missingLocators.length === 0) Blockbench.showQuickMessage(`No missing locators :)`, 2000);
-                else Blockbench.showQuickMessage(`Locators Missing: ${missingLocators}`, 3500);
-
-                Blockbench.showStatusMessage(`Total Locators: ${allLocatorNames.length}`, 2000)
-            }
-        });
-
-        MenuBar.addAction(hide_locator_btn, 'filter');
-        MenuBar.addAction(swap_primary_btn, 'filter');
-        MenuBar.addAction(folder_locator_btn, 'filter');
-        MenuBar.addAction(check_locator_btn, 'filter');
-        //#endregion
+        createActionButtons();
     },
     onunload() {
-        if (this.renderer) {
-            this.renderer.cleanup();
-        }
+        this.renderer.cleanup();
         delete this.renderer;
-
-        hide_locator_btn.delete();
-        swap_primary_btn.delete();
-        folder_locator_btn.delete();
-        check_locator_btn.delete();
+        deleteActionButtons();
     }
 });
+//#endregion

@@ -1,4 +1,4 @@
-const PLUGIN_ID = 'bedrock_item_renderer';
+const PLUGIN_ID = 'locator_model_renderer';
 
 //#region Item Model Parser
 
@@ -335,7 +335,7 @@ const universal_locators = [
 
 // Register the plugin
 BBPlugin.register(PLUGIN_ID, {
-    title: 'Locator Model Helper',
+    title: 'Locator Model Renderer',
     author: 'Josh',
     description: 'Select an open Model Project and render it onto a selected Locator. Plus some other helpful Locator shortcuts.',
     about: 

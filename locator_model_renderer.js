@@ -93,8 +93,8 @@ class LocatorModelParser {
 
 
 
-//#region Item Renderer
-class BedrockItemRenderer {
+//#region Model Renderer
+class ModelRenderer {
     constructor() {
         if (Project){
             Project.selectedProject = null;

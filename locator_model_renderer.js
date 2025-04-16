@@ -22,7 +22,8 @@ class LocatorModelParser {
             if(Project.selectedDisplayContext) this.applyDisplayContext(Project.selectedDisplayContext);
         }
         // apply scale from slider
-        if (Project.modelScale) this.selectedModel.applyMatrix4(new THREE.Matrix4().makeScale(Project.modelScale,Project.modelScale,Project.modelScale));
+        let finalScale = /^seat_\d+$/.test(Project.selectedLocator.name)?0.9375/Project.modelScale:Project.modelScale
+        if (Project.modelScale) this.selectedModel.applyMatrix4(new THREE.Matrix4().makeScale(finalScale,finalScale,finalScale));
         
         // apply locator position and rotation
         this.selectedModel.applyMatrix4(matrix);
@@ -151,7 +152,8 @@ class BedrockItemRenderer {
                         context: Project.selectedDisplayContext,
                         locator: Project.selectedLocator,
                         isItem: (Project.selectedProject) ? (Project.selectedProject.format.id === "java_block") : false,
-                        scale: 1.0,
+                        isSeat: (Project.selectedLocator) ? /^seat_\d+$/.test(Project.selectedLocator.name) : false,
+                        scale: (Project.modelScale) ? Project.modelScale : 1.0,
                         projects: ModelProject.all.slice(),
                         locators: Locator.all.slice()
                     };
@@ -180,16 +182,17 @@ class BedrockItemRenderer {
                     onLocatorSelect() {
                         Project.selectedLocator = this.locator;
                         if(this.locator && this.selected) {
-                            Project.modelScale = /^seat_\d+$/.test(this.locator.name)? 0.9375: 1.0; // set scale if seat locator is selected
+                            this.isSeat =  /^seat_\d+$/.test(this.locator.name); // set scale if seat locator is selected
                             if ((this.locator.name === "item_hat" || this.locator.name === "item_face") && this.selected.display_settings.head) Project.selectedDisplayContext = this.selected.display_settings.head;
                             //else if ((this.locator.name === "item") && this.selected.display_settings.thirdperson_righthand) Project.selectedDisplayContext = this.selected.display_settings.thirdperson_righthand;
                             else if (this.selected.display_settings.fixed) Project.selectedDisplayContext = this.selected.display_settings.fixed;
-                            this.updateSettings();
+                            Project.modelScale = 1.0;
+                            this.updateSettings();                            
                         }
                         self.updateRendering();
-                    },
+                    }, 
                     onScaleChange() {
-                        Project.modelScale = this.scale;
+                        Project.modelScale = this.scale  ;
                         self.updateRendering();
                     },
                     updateSettings() {
@@ -197,6 +200,7 @@ class BedrockItemRenderer {
                         this.selected = Project.selectedProject;
                         this.context = Project.selectedDisplayContext;
                         this.locator = Project.selectedLocator;
+                        this.isSeat = (Project.selectedLocator) ? /^seat_\d+$/.test(Project.selectedLocator.name) : false;
                         this.isItem = (Project.selectedProject) ? (Project.selectedProject.format.id === "java_block") : false;
                         this.scale = (Project.modelScale) ? Project.modelScale : 1.0;
                         this.projects = ModelProject.all.slice();
@@ -250,72 +254,77 @@ class BedrockItemRenderer {
 const PANEL_UI =
 `
 <template v-if="projectType === 'bedrock'">
-<div class="bedrock-item-renderer" style="margin-left: 20px;">
-
-    <div class="status">
-        <template v-if="selected">
-            Selected: {{ selected.name || 'Untitled' }}
-        </template>
-        <template v-else>
-            No project selected
-        </template>
-    </div>
-
-    <div class="inputs">
-        <div style="display: inline-block; margin-right: 20px;">
-            <label for="project">Project</label></br>
-            <select id="project" v-model="selected" @change="onProjectSelect">
-                <option :value="null">None</option>
-                <option 
-                v-for="project in filteredProjects" 
-                :value="project"
-                :key="project.uuid"
-                >
-                {{ project.name || 'Untitled' }}
-                </option>
-            </select>
+    <div class="bedrock-item-renderer" style="margin-left: 20px;">
+    
+        <div class="status">
+            <template v-if="selected">
+                Selected: {{ selected.name || 'Untitled' }}
+            </template>
+            <template v-else>
+                No project selected
+            </template>
         </div>
-
-
-        <template v-if="selected">
+    
+        <div class="inputs">
             <div style="display: inline-block; margin-right: 20px;">
-                <label for="locator">Locator</label></br>
-                <select id="locator" v-model="locator" @change="onLocatorSelect">
+                <label for="project">Project</label></br>
+                <select id="project" v-model="selected" @change="onProjectSelect">
                     <option :value="null">None</option>
                     <option 
-                    v-for="locator in getLocators" 
-                    :value="locator"
+                    v-for="project in filteredProjects" 
+                    :value="project"
+                    :key="project.uuid"
                     >
-                    {{ locator.name || 'Untitled' }}
+                    {{ project.name || 'Untitled' }}
                     </option>
                 </select>
             </div>
-            <template v-if="isItem">
+    
+    
+            <template v-if="selected">
                 <div style="display: inline-block; margin-right: 20px;">
-                    <label for="context">Context</label></br>
-                    <select id="context" v-model="context" @change="onContextSelect">
+                    <label for="locator">Locator</label></br>
+                    <select id="locator" v-model="locator" @change="onLocatorSelect">
                         <option :value="null">None</option>
                         <option 
-                        v-for="context in getContexts" 
-                        :value="context"
+                        v-for="locator in getLocators" 
+                        :value="locator"
                         >
-                        {{ context.slot_id || 'Untitled' }}
+                        {{ locator.name || 'Untitled' }}
                         </option>
                     </select>
                 </div>
+                <template v-if="isItem">
+                    <div style="display: inline-block; margin-right: 20px;">
+                        <label for="context">Context</label></br>
+                        <select id="context" v-model="context" @change="onContextSelect">
+                            <option :value="null">None</option>
+                            <option 
+                            v-for="context in getContexts" 
+                            :value="context"
+                            >
+                            {{ context.slot_id || 'Untitled' }}
+                            </option>
+                        </select>
+                    </div>
+                </template>
             </template>
+        </div>
+        </br>
+        <template v-if="selected">
+            <div class="scale" style="display: inline-block;">
+                <template v-if="isSeat">
+                    <label for="scale_slider" >Pokemon's Base Scale</label></br>
+                </template>
+                <template v-else>
+                    <label for="scale_slider" >Locator Scale</label></br>
+                </template>
+                <input v-model="scale" @change="onScaleChange" id="scale_slider" type="range"  value="1" min="0" max="4" step=".1" style="width: 100px; position: absolute;">
+                <input v-model="scale" @change="onScaleChange" id="scale_number" type="number" value="1" min="0" max="4" step=".1" style="width: 60px; margin-left: 110px; margin-top: 4px;">
+            </div>
         </template>
     </div>
-
-    <template v-if="selected">
-        <div class="scale" style="display: inline-block;">
-            <label for="scale_slider" >Scale</label></br>
-            <input v-model="scale" @change="onScaleChange" id="scale_slider" type="range"  value="1" min="0" max="4" step=".1" style="width: 100px; position: absolute;">
-            <input v-model="scale" @change="onScaleChange" id="scale_number" type="number" value="1" min="0" max="4" step=".1" style="width: 60px; margin-left: 110px; margin-top: 4px;">
-        </div>
-    </template>
 </template>
-</div>
 `;
 //#endregion
 

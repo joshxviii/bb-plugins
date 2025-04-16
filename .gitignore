@@ -130,3 +130,5 @@ dist
 .pnp.*
 package-lock.json
 package.json
+/testModels
+vue-html-test.html

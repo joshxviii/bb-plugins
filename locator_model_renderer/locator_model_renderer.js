@@ -173,7 +173,11 @@ class ModelRenderer {
                 methods: {
                     onProjectSelect() {
                         Project.selectedProject = this.selected;
-                        this.isItem =  (this.selected) ? (this.selected.format.id === "java_block") : false,
+                        if (this.selected) {
+                            this.isItem = (this.selected.format.id === "java_block");
+                            if(this.selected.display_settings[this.context.slot_id]) Project.selectedDisplayContext = this.selected.display_settings[this.context.slot_id];
+                            this.updateSettings();
+                        }
                         self.updateRendering();
                     },
                     onContextSelect() {
@@ -187,13 +191,12 @@ class ModelRenderer {
                             if ((this.locator.name === "item_hat" || this.locator.name === "item_face") && this.selected.display_settings.head) Project.selectedDisplayContext = this.selected.display_settings.head;
                             else if (this.locator.name === "item" && this.selected.display_settings.thirdperson_righthand) Project.selectedDisplayContext = this.selected.display_settings.thirdperson_righthand;
                             else if (this.selected.display_settings.fixed) Project.selectedDisplayContext = this.selected.display_settings.fixed;
-                            Project.modelScale = 1.0;
                             this.updateSettings();                            
                         }
                         self.updateRendering();
                     }, 
                     onScaleChange() {
-                        Project.modelScale = this.scale  ;
+                        Project.modelScale = this.scale;
                         self.updateRendering();
                     },
                     updateSettings() {

@@ -189,10 +189,11 @@ class ModelRenderer {
                             this.isSeat =  /^seat_\d+$/.test(this.locator.name); // set scale if seat locator is selected
                             if ((this.locator.name === "item_hat" || this.locator.name === "item_face") && this.selected.display_settings.head) Project.selectedDisplayContext = this.selected.display_settings.head;
                             else if (this.selected.display_settings.fixed) Project.selectedDisplayContext = this.selected.display_settings.fixed;                            
+                        
+                            if(Project.selectedLocator.parent.name.startsWith("locator_")) Project.selectedLocator.parent.select();
+                            else Project.selectedLocator.select();
+                            Project.selectedLocator.showInOutliner();
                         }
-                        if(Project.selectedLocator.parent.name.startsWith("locator_")) Project.selectedLocator.parent.select();
-                        else Project.selectedLocator.select();
-                        Project.selectedLocator.showInOutliner();
                         this.updateSettings();
                     }, 
                     onScaleChange() {

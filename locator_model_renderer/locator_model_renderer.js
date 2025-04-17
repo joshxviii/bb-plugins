@@ -173,8 +173,10 @@ class ModelRenderer {
                 methods: {
                     onProjectSelect() {
                         Project.selectedProject = this.selected;
-                        if (this.selected) this.isItem = (this.selected.format.id === "java_block");
-                        if (this.isItem && this.selected.display_settings[this.context.slot_id]) Project.selectedDisplayContext = this.selected.display_settings[this.context.slot_id];
+                        if (this.selected) {
+                            this.isItem = (this.selected.format.id === "java_block");
+                            if (this.isItem && this.context) if(this.selected.display_settings[this.context.slot_id]) Project.selectedDisplayContext = this.selected.display_settings[this.context.slot_id];
+                        }
                         this.updateSettings();
                     },
                     onContextSelect() {

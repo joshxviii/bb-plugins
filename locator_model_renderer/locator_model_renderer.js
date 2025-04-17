@@ -71,6 +71,8 @@ class LocatorModelParser {
                 .makeRotationX(-90 * (Math.PI / 180)));
                 this.selectedModel.applyMatrix4(new THREE.Matrix4()
                 .makeRotationZ(90 * (Math.PI / 180)));
+                this.selectedModel.applyMatrix4(new THREE.Matrix4()
+                .makeTranslation((isLeft?-1:1),0,0));
                 break;
             case "head":
                 this.selectedModel.applyMatrix4(new THREE.Matrix4()

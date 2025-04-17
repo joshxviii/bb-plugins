@@ -61,7 +61,7 @@ class LocatorModelParser {
                 this.selectedModel.applyMatrix4(new THREE.Matrix4()
                 .makeRotationX(90 * (Math.PI / 180)));
                 this.selectedModel.applyMatrix4(new THREE.Matrix4()
-                .makeTranslation(0,.5,0));
+                .makeTranslation(0,.25,0));
                 break;
             case "thirdperson_righthand":
                 this.selectedModel.applyMatrix4(new THREE.Matrix4()
@@ -376,7 +376,7 @@ function createActionButtons() {
                     /_(primary|secondary|left|right)(\d*)$/,
                     (match, p1, p2) => {
                         const swaps = { primary: 'secondary', secondary: 'primary', left: 'right', right: 'left'};
-                        return `_${swaps[p1]}${p2}`;
+                        return `_${swaps[p1]}`;
                     }
                 );
             }

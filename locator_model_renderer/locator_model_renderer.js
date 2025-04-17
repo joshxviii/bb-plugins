@@ -193,6 +193,9 @@ class ModelRenderer {
                             else if (this.selected.display_settings.fixed) Project.selectedDisplayContext = this.selected.display_settings.fixed;
                             this.updateSettings();                            
                         }
+                        if(Project.selectedLocator.parent.name.startsWith("locator_")) Project.selectedLocator.parent.select();
+                        else Project.selectedLocator.select();
+                        Project.selectedLocator.showInOutliner();
                         self.updateRendering();
                     }, 
                     onScaleChange() {
@@ -324,8 +327,8 @@ const PANEL_HTML =
                 <template v-else>
                     <label for="scale_slider" >Locator Scale</label></br>
                 </template>
-                <input v-model="scale" @change="onScaleChange" id="scale_slider" type="range"  value="1" min="0" max="4" step=".1" style="width: 100px; position: absolute;">
-                <input v-model="scale" @change="onScaleChange" id="scale_number" type="number" value="1" min="0" max="4" step=".1" style="width: 60px; margin-left: 110px; margin-top: 4px;">
+                <input v-model="scale" @input="onScaleChange" id="scale_slider" type="range"  value="1.00" min=".50" max="3.00" step=".01" style="width: 150px; position: absolute;">
+                <input v-model="scale" @change="onScaleChange" id="scale_number" type="number" value="1.00" min=".50" max="3.00" step=".01" style="width: 60px; margin-left: 160px; margin-top: 4px;">
             </div>
         </template>
     </div>

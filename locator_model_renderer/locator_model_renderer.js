@@ -406,6 +406,8 @@ function createActionButtons() {
                     bone.addTo(locator.parent);
                     locator.addTo(bone);
                     bone.origin = getSelectionCenter();
+                    bone.select();
+                    bone.showInOutliner();
                 }
                 else Blockbench.showQuickMessage(`'${locator.name}' is already in a folder.`, 1500)
             });

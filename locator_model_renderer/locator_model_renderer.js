@@ -189,7 +189,6 @@ class ModelRenderer {
                         if(this.locator && this.selected) {
                             this.isSeat =  /^seat_\d+$/.test(this.locator.name); // set scale if seat locator is selected
                             if ((this.locator.name === "item_hat" || this.locator.name === "item_face") && this.selected.display_settings.head) Project.selectedDisplayContext = this.selected.display_settings.head;
-                            else if (this.locator.name === "item" && this.selected.display_settings.thirdperson_righthand) Project.selectedDisplayContext = this.selected.display_settings.thirdperson_righthand;
                             else if (this.selected.display_settings.fixed) Project.selectedDisplayContext = this.selected.display_settings.fixed;
                             this.updateSettings();                            
                         }

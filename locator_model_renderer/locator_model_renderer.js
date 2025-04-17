@@ -173,33 +173,29 @@ class ModelRenderer {
                 methods: {
                     onProjectSelect() {
                         Project.selectedProject = this.selected;
-                        if (this.selected) {
-                            this.isItem = (this.selected.format.id === "java_block");
-                            if(this.selected.display_settings[this.context.slot_id]) Project.selectedDisplayContext = this.selected.display_settings[this.context.slot_id];
-                            this.updateSettings();
-                        }
-                        self.updateRendering();
+                        if (this.selected) this.isItem = (this.selected.format.id === "java_block");
+                        if (this.isItem && this.selected.display_settings[this.context.slot_id]) Project.selectedDisplayContext = this.selected.display_settings[this.context.slot_id];
+                        this.updateSettings();
                     },
                     onContextSelect() {
                         Project.selectedDisplayContext = this.context;
-                        self.updateRendering();
+                        this.updateSettings();
                     },
                     onLocatorSelect() {
                         Project.selectedLocator = this.locator;
                         if(this.locator && this.selected) {
                             this.isSeat =  /^seat_\d+$/.test(this.locator.name); // set scale if seat locator is selected
                             if ((this.locator.name === "item_hat" || this.locator.name === "item_face") && this.selected.display_settings.head) Project.selectedDisplayContext = this.selected.display_settings.head;
-                            else if (this.selected.display_settings.fixed) Project.selectedDisplayContext = this.selected.display_settings.fixed;
-                            this.updateSettings();                            
+                            else if (this.selected.display_settings.fixed) Project.selectedDisplayContext = this.selected.display_settings.fixed;                            
                         }
                         if(Project.selectedLocator.parent.name.startsWith("locator_")) Project.selectedLocator.parent.select();
                         else Project.selectedLocator.select();
                         Project.selectedLocator.showInOutliner();
-                        self.updateRendering();
+                        this.updateSettings();
                     }, 
                     onScaleChange() {
                         Project.modelScale = this.scale;
-                        self.updateRendering();
+                        this.updateSettings();
                     },
                     updateSettings() {
                         this.projectType = Project.format.id,
@@ -211,6 +207,7 @@ class ModelRenderer {
                         this.scale = (Project.modelScale) ? Project.modelScale : 1.0;
                         this.projects = ModelProject.all.slice();
                         this.locators = Locator.all.slice();
+                        self.updateRendering();
                     }
                 },
                 mounted() {

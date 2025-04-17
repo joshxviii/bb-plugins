@@ -33,6 +33,8 @@ class LocatorModelParser {
     }
 
     applyDisplayContext(displayContext) {
+        let isLeft = (displayContext.slot_id==="thirdperson_lefthand" || displayContext.slot_id==="firstperson_lefthand"); 
+
         // display context stuff
         this.selectedModel.applyMatrix4(new THREE.Matrix4()
         .makeScale(
@@ -43,14 +45,14 @@ class LocatorModelParser {
         this.selectedModel.applyMatrix4(new THREE.Matrix4()
         .makeRotationFromEuler(new THREE.Euler(
             displayContext.rotation[0] * (Math.PI / 180),
-            displayContext.rotation[1] * (Math.PI / 180),
-            displayContext.rotation[2] * (Math.PI / 180)
+            (isLeft?-3:1)*displayContext.rotation[1] * (Math.PI / 180),
+            (isLeft?-1:1)*displayContext.rotation[2] * (Math.PI / 180)
         )));
         this.selectedModel.applyMatrix4(new THREE.Matrix4()
         .makeTranslation(
             displayContext.translation[0],
             displayContext.translation[1],
-            displayContext.translation[2]
+            (isLeft?-1:1)*displayContext.translation[2]
         ));
 
         //Apply Cobblemon specific held item transformations
@@ -64,6 +66,7 @@ class LocatorModelParser {
                 .makeTranslation(0,.25,0));
                 break;
             case "thirdperson_righthand":
+            case "thirdperson_lefthand":
                 this.selectedModel.applyMatrix4(new THREE.Matrix4()
                 .makeRotationX(-90 * (Math.PI / 180)));
                 this.selectedModel.applyMatrix4(new THREE.Matrix4()
@@ -260,8 +263,8 @@ class ModelRenderer {
 // Main
 const PANEL_HTML =
 `
-<template v-if="projectType !== 'java_block' && projectType !== 'modded_entity'">
-    <div class="bedrock-item-renderer" style="margin-left: 20px;">
+<div class="bedrock-item-renderer" style="margin-left: 20px;">
+    <template v-if="projectType !== 'java_block' && projectType !== 'modded_entity'">
     
         <div class="status">
             <template v-if="selected">
@@ -330,8 +333,8 @@ const PANEL_HTML =
                 <input v-model="scale" @change="onScaleChange" id="scale_number" type="number" value="1.00" min=".50" max="3.00" step=".01" style="width: 60px; margin-left: 160px; margin-top: 4px;">
             </div>
         </template>
-    </div>
-</template>
+    </template>
+</div>
 `;
 //#endregion
 

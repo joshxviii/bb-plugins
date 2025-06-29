@@ -25,7 +25,7 @@ class LocatorModelParser {
         // apply scale from slider
         let finalScale = /^seat_\d+$/.test(Project.selectedLocator.name)?0.9375/Project.modelScale:Project.modelScale
         if (Project.modelScale) this.selectedModel.applyMatrix4(new THREE.Matrix4().makeScale(finalScale,finalScale,finalScale));
-        
+
         // apply locator position and rotation
         this.selectedModel.applyMatrix4(matrix);
 
@@ -139,6 +139,24 @@ class ModelRenderer {
         }
     }
 
+    async updateAnimations() {
+        if (!Animator.open) return;
+
+        const testAnim = (name, locatorName) => {
+            const animation = Animation.all.find(anim => anim.name.endsWith(name));
+            if (animation) {
+            animation.togglePlayingState(
+                Project.selectedProject && Project.selectedLocator?.name === locatorName
+                ? 'locked'
+                : false
+            );
+            }
+        };
+
+        testAnim('.hold_item', 'item');
+        testAnim('.wear_hat', 'item_hat');
+    }
+
     updateModelPositions() {
         if (Project.locatorModel && Project.selectedLocator && Project.selectedProject) {
             if (Project.selectedLocator.mesh) Project.locatorModel.setMatrix(Project.selectedLocator.mesh.matrixWorld, Project.selectedProject.format.id === 'java_block');
@@ -182,6 +200,7 @@ class ModelRenderer {
                             this.isItem = (this.selected.format.id === "java_block");
                             if (this.isItem && this.context) if(this.selected.display_settings[this.context.slot_id]) Project.selectedDisplayContext = this.selected.display_settings[this.context.slot_id];
                         }
+                        self.updateAnimations();
                         this.updateSettings();
                     },
                     onContextSelect() {
@@ -199,6 +218,11 @@ class ModelRenderer {
                             else Project.selectedLocator.select();
                             Project.selectedLocator.showInOutliner();
                         }
+                        else Locator.selected.forEach(locator => { 
+                            locator.unselect();
+                            if(locator.parent.name.startsWith("locator_")) locator.parent.unselect();
+                        });
+                        self.updateAnimations();
                         this.updateSettings();
                     }, 
                     onScaleChange() {
@@ -281,7 +305,7 @@ const PANEL_HTML =
             <div style="display: inline-block; margin-right: 20px;">
                 <label for="project">Project</label></br>
                 <select id="project" v-model="selected" @change="onProjectSelect">
-                    <option :value="null">None</option>
+                    <option :value="undefined">None</option>
                     <option 
                     v-for="project in filteredProjects" 
                     :value="project"
@@ -297,7 +321,7 @@ const PANEL_HTML =
                 <div style="display: inline-block; margin-right: 20px;">
                     <label for="locator">Locator</label></br>
                     <select id="locator" v-model="locator" @change="onLocatorSelect">
-                        <option :value="null">None</option>
+                        <option :value="undefined">None</option>
                         <option 
                         v-for="locator in locators" 
                         :value="locator"
@@ -310,7 +334,7 @@ const PANEL_HTML =
                     <div style="display: inline-block; margin-right: 20px;">
                         <label for="context">Context</label></br>
                         <select id="context" v-model="context" @change="onContextSelect">
-                            <option :value="null">None</option>
+                            <option :value="undefined">None</option>
                             <option 
                             v-for="context in getContexts" 
                             :value="context"

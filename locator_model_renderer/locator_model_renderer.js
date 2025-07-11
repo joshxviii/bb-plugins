@@ -118,6 +118,7 @@ class ModelRenderer {
         this.setupUI();
         this.updateRendering();
         Blockbench.on('render_frame', this.updateModelPositions.bind(this));
+        Blockbench.on('display_animation_frame', this.updateModelPositions.bind(this))
         Blockbench.on('update_selection', this.updatePanelSettings.bind(this));
         Blockbench.on('select_project', this.updatePanelSettings.bind(this));
         Blockbench.on('close_project', this.updatePanelSettings.bind(this));
@@ -143,18 +144,19 @@ class ModelRenderer {
         if (!Animator.open) return;
 
         const testAnim = (name, locatorName) => {
-            const animation = Animation.all.find(anim => anim.name.endsWith(name));
+            const animation = Animation.all.find(anim => anim.name.endsWith('.' + name));
             if (animation) {
             animation.togglePlayingState(
                 Project.selectedProject && Project.selectedLocator?.name === locatorName
                 ? 'locked'
                 : false
             );
+            animation.pause();
             }
         };
 
-        testAnim('.hold_item', 'item');
-        testAnim('.wear_hat', 'item_hat');
+        testAnim('hold_item', 'item');
+        testAnim('wear_hat', 'item_hat');
     }
 
     updateModelPositions() {

@@ -1,7 +1,7 @@
 const PLUGIN_ID = 'locator_model_renderer';
 const PLUGIN_VERSION = '1.0.0';
 
-//#region Project Model Parser
+// #region Project Model Parser
 
 class LocatorModelParser {
     constructor(project) {
@@ -22,7 +22,7 @@ class LocatorModelParser {
             this.selectedModel.applyMatrix4(new THREE.Matrix4().makeTranslation(-8,-8,-8));
             if(Project.selectedDisplayContext) this.applyDisplayContext(Project.selectedDisplayContext);
         }
-        // apply scale from slider
+        // apply scale from scale slider
         let finalScale = /^seat_\d+$/.test(Project.selectedLocator.name)?0.9375/Project.modelScale:Project.modelScale
         if (Project.modelScale) this.selectedModel.applyMatrix4(new THREE.Matrix4().makeScale(finalScale,finalScale,finalScale));
 
@@ -32,10 +32,11 @@ class LocatorModelParser {
         Project.model_3d.add(this.selectedModel);
     }
 
+    // #region Display Context Transformations
     applyDisplayContext(displayContext) {
         let isLeft = (displayContext.slot_id==="thirdperson_lefthand" || displayContext.slot_id==="firstperson_lefthand"); 
 
-        // display context stuff
+        // Apply default display context transforms
         this.selectedModel.applyMatrix4(new THREE.Matrix4()
         .makeScale(
             displayContext.scale[0],
@@ -55,7 +56,7 @@ class LocatorModelParser {
             (isLeft?-1:1)*displayContext.translation[2]
         ));
 
-        //Apply Cobblemon specific held item transformations
+        // Apply Cobblemon specific held item transformations
         switch (displayContext.slot_id) {
             case "fixed":
                 this.selectedModel.applyMatrix4(new THREE.Matrix4()
@@ -88,6 +89,7 @@ class LocatorModelParser {
                 break;
         }
     }
+    //#endregion
 
     dispose() {
         if(this.selectedModel) {
@@ -140,6 +142,7 @@ class ModelRenderer {
         }
     }
 
+    // Play and lock item hold animations when rendering a certain locators
     async updateAnimations() {
         if (!Animator.open) return;
 
@@ -165,19 +168,26 @@ class ModelRenderer {
         }
     }
 
+    //#region Panel Interface
     setupUI() {
         const self = this;
-        //todo clean up panel ui, probably lots of redundant logic here but I don't want to touch it cause it works
         this.panel = new Panel(PLUGIN_ID, {
             id: PLUGIN_ID,
             name: 'Locator Model Renderer',
-            default_position: 'bottom',
+            default_position: {
+                slot: 'left_bar',
+				height: 130,
+                folded: false
+            },
+            default_side: 'left',
+            growable: true,
+            resizable: true,
             component: Vue.extend({
                 template: PANEL_HTML,
                 data() {
                     return {
                         projectType: (Project)?Project.format.id:"",
-                        selected: Project.selectedProject,
+                        project: Project.selectedProject,
                         context: Project.selectedDisplayContext,
                         locator: Project.selectedLocator,
                         isItem: (Project.selectedProject) ? (Project.selectedProject.format.id === "java_block") : false,
@@ -192,15 +202,22 @@ class ModelRenderer {
                         return this.projects.filter(p => p.uuid != Project.uuid);
                     },
                     getContexts() {
-                        return this.selected.display_settings;
+                        return this.project.display_settings;
+                    },
+                    sortedLocators() {
+                        return this.locators.slice().sort((a, b) => {
+                            const nameA = (a.name || 'Untitled').toLowerCase();
+                            const nameB = (b.name || 'Untitled').toLowerCase();
+                            return nameA.localeCompare(nameB);
+                        });
                     }
                 },
                 methods: {
                     onProjectSelect() {
-                        Project.selectedProject = this.selected;
-                        if (this.selected) {
-                            this.isItem = (this.selected.format.id === "java_block");
-                            if (this.isItem && this.context) if(this.selected.display_settings[this.context.slot_id]) Project.selectedDisplayContext = this.selected.display_settings[this.context.slot_id];
+                        Project.selectedProject = this.project;
+                        if (this.project) {
+                            this.isItem = (this.project.format.id === "java_block");
+                            if (this.isItem && this.context) if(this.project.display_settings[this.context.slot_id]) Project.selectedDisplayContext = this.project.display_settings[this.context.slot_id];
                         }
                         self.updateAnimations();
                         this.updateSettings();
@@ -211,10 +228,10 @@ class ModelRenderer {
                     },
                     onLocatorSelect() {
                         Project.selectedLocator = this.locator;
-                        if(this.locator && this.selected) {
+                        if(this.locator && this.project) {
                             this.isSeat =  /^seat_\d+$/.test(this.locator.name); // set scale if seat locator is selected
-                            if ((this.locator.name === "item_hat" || this.locator.name === "item_face") && this.selected.display_settings.head) Project.selectedDisplayContext = this.selected.display_settings.head;
-                            else if (this.selected.display_settings.fixed) Project.selectedDisplayContext = this.selected.display_settings.fixed;                            
+                            if ((this.locator.name === "item_hat" || this.locator.name === "item_face") && this.project.display_settings.head) Project.selectedDisplayContext = this.project.display_settings.head;
+                            else if (this.project.display_settings.fixed) Project.selectedDisplayContext = this.project.display_settings.fixed;                            
                         
                             if(Project.selectedLocator.parent.name.startsWith("locator_")) Project.selectedLocator.parent.select();
                             else Project.selectedLocator.select();
@@ -233,9 +250,9 @@ class ModelRenderer {
                     },
                     updateSettings() {
                         this.projectType = Project.format.id,
-                        this.selected = Project.selectedProject;
-                        this.context = Project.selectedDisplayContext;
-                        this.locator = Project.selectedLocator;
+                        this.project = Project.selectedProject ?? undefined;
+                        this.context = Project.selectedDisplayContext ?? undefined;
+                        this.locator = Project.selectedLocator ?? undefined;
                         this.isSeat = (Project.selectedLocator) ? /^seat_\d+$/.test(Project.selectedLocator.name) : false;
                         this.isItem = (Project.selectedProject) ? (Project.selectedProject.format.id === "java_block") : false;
                         this.scale = (Project.modelScale) ? Project.modelScale : 1.0;
@@ -245,8 +262,18 @@ class ModelRenderer {
                     }
                 },
                 mounted() {
-                    this.selected = Project.selectedProject;
-                    this.context = Project.selectedDisplayContext;
+                    const style = document.createElement('style');
+                    style.textContent = `
+                        .bedrock-item-renderer label {
+                            width: 100px;
+                            display: inline-block;
+                            color: var(--color-subtle_text);
+                        }
+                    `;
+                    document.head.appendChild(style);
+                    this.project = Project.selectedProject ?? undefined;
+                    this.context = Project.selectedDisplayContext ?? undefined;
+                    this.locator = Project.selectedLocator ?? undefined;
                     self.vueInstance = this;
                     
                     this.observer = new MutationObserver(() => {
@@ -262,6 +289,7 @@ class ModelRenderer {
             })
         });
     }
+    //#endregion
 
     updatePanelSettings() {
         if(this.vueInstance) this.vueInstance.updateSettings();
@@ -292,75 +320,79 @@ class ModelRenderer {
 const PANEL_HTML =
 `
 <div class="bedrock-item-renderer" style="margin-left: 20px;">
+
     <template v-if="projectType !== 'java_block' && projectType !== 'modded_entity'">
-    
-        <div class="status">
-            <template v-if="selected">
-                Selected: {{ selected.name || 'Untitled' }}
-            </template>
-            <template v-else>
-                No project selected
-            </template>
-        </div>
-    
-        <div class="inputs">
+
+        <div class="inputs" style="display: flex;flex-direction: column; gap: 4px;">
+            
             <div style="display: inline-block; margin-right: 20px;">
-                <label for="project">Project</label></br>
-                <select id="project" v-model="selected" @change="onProjectSelect">
+                <label for="locator">Locator</label>
+                <select id="locator" v-model="locator" @change="onLocatorSelect">
                     <option :value="undefined">None</option>
                     <option 
-                    v-for="project in filteredProjects" 
-                    :value="project"
-                    :key="project.uuid"
+                    v-for="locator in sortedLocators" 
+                    :value="locator"
+                    :key="locator.uuid"
                     >
-                    {{ project.name || 'Untitled' }}
+                    {{ locator.name || 'Untitled' }}
                     </option>
                 </select>
             </div>
     
-    
-            <template v-if="selected">
+            <template v-if="locator">
+
                 <div style="display: inline-block; margin-right: 20px;">
-                    <label for="locator">Locator</label></br>
-                    <select id="locator" v-model="locator" @change="onLocatorSelect">
+                    <label for="project">Model Project</label>
+                    <select id="project" v-model="project" @change="onProjectSelect">
                         <option :value="undefined">None</option>
                         <option 
-                        v-for="locator in locators" 
-                        :value="locator"
+                        v-for="project in filteredProjects" 
+                        :value="project"
+                        :key="project.uuid"
                         >
-                        {{ locator.name || 'Untitled' }}
+                        {{ project.name || 'Untitled' }}
                         </option>
                     </select>
                 </div>
+
                 <template v-if="isItem">
                     <div style="display: inline-block; margin-right: 20px;">
-                        <label for="context">Context</label></br>
+                        <label for="context">Context</label>
                         <select id="context" v-model="context" @change="onContextSelect">
                             <option :value="undefined">None</option>
                             <option 
                             v-for="context in getContexts" 
                             :value="context"
+                            :key="context.slot_id"
                             >
-                            {{ context.slot_id || 'Untitled' }}
+                            {{ context.slot_id.toUpperCase() || 'Untitled' }}
                             </option>
                         </select>
                     </div>
                 </template>
+
+                <div class="scale" style="display: inline-flex;">
+                    <template v-if="isSeat">
+                        <label for="scale_slider">Base Scale</label>
+                    </template>
+                    <template v-else>
+                        <label for="scale_slider">Scale</label>
+                    </template>
+
+                    <div class="bar slider_input_combo" title="Scale">
+                        <input type="range" id="scale_slider" v-model.number="scale" class="tool disp_range" style="width: auto; margin-left: 3px;"
+                            :min="0.05"
+                            :max="4.00"
+                            :step="0.01"
+                            value="1.00" @input="onScaleChange">
+                        <numeric-input id="scale_number" v-model.number="scale" class="tool disp_text" :min="0.05" :max="4.00" :step="0.05" value="1.00" @input="onScaleChange" @change="onScaleChange"/>
+                    </div>
+                </div>
+
             </template>
+        
         </div>
-        </br>
-        <template v-if="selected">
-            <div class="scale" style="display: inline-block;">
-                <template v-if="isSeat">
-                    <label for="scale_slider" >Pokemon's Base Scale</label></br>
-                </template>
-                <template v-else>
-                    <label for="scale_slider" >Locator Scale</label></br>
-                </template>
-                <input v-model="scale" @input="onScaleChange" id="scale_slider" type="range"  value="1.00" min=".50" max="3.00" step=".01" style="width: 150px; position: absolute;">
-                <input v-model="scale" @change="onScaleChange" id="scale_number" type="number" value="1.00" min=".50" max="3.00" step=".01" style="width: 60px; margin-left: 160px; margin-top: 4px;">
-            </div>
-        </template>
+
     </template>
 </div>
 `;
@@ -382,7 +414,7 @@ const universal_locators = [
 ];
 
 function createActionButtons() {
-    hide_locator_btn = new Toggle('hide_locators', {
+    hide_locator_btn = new Toggle('hide_locators', {// Hides all locator UI icons
         name: 'Hide Locators',
         description: 'Hides all the locators on the model.',
         icon: 'visibility',
@@ -396,7 +428,7 @@ function createActionButtons() {
         }
     });
 
-    swap_primary_btn = new Action('swap_primary', {
+    swap_primary_btn = new Action('swap_primary', {// Flips the name of locators that end with Primary/Secondary
         name: 'Rename Locators',
         description: 'Flips the name of locators that end with Primary/Secondary',
         icon: 'sync_alt',
@@ -426,7 +458,7 @@ function createActionButtons() {
         }
     });
 
-    folder_locator_btn = new Action('locator_folder', {
+    folder_locator_btn = new Action('locator_folder', {// Creates floder prefixed with "locator_" 
         name: 'Create Locator Folder',
         description: 'Adds all selected locators into their own folder prefixed with "locator_".',
         icon: 'folder',
@@ -447,7 +479,7 @@ function createActionButtons() {
         }
     });
 
-    check_locator_btn = new Action('check_universal_locators', {
+    check_locator_btn = new Action('check_universal_locators', {// Checks if all universal locators are present in the model
         name: 'Check Locators',
         description: 'Checks this model for universal locators.',
         icon: 'sentiment_satisfied',
@@ -477,6 +509,8 @@ function deleteActionButtons() {
     check_locator_btn.delete();
 }
 //#endregion
+
+
 
 //#region Register plugin
 BBPlugin.register(PLUGIN_ID, {

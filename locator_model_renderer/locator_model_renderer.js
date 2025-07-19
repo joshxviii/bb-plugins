@@ -1,9 +1,9 @@
 const PLUGIN_ID = 'locator_model_renderer';
-const PLUGIN_VERSION = '1.1.0';
+const PLUGIN_VERSION = '1.1.1';
 
 // #region Project Model Parser
 
-class LocatorModelParser {
+class ParsedLocatorModel {
     constructor(locator) {
         this.origin = locator;
         this.modelClone = null;
@@ -23,7 +23,6 @@ class LocatorModelParser {
         // apply scale from scale slider
         let finalScale = /^seat_\d+$/.test(this.origin.name)?0.9375/this.origin.scale:this.origin.scale
         if (this.origin.scale) this.modelClone.applyMatrix4(new THREE.Matrix4().makeScale(finalScale,finalScale,finalScale));
-
         // apply locator position and rotation
         this.modelClone.applyMatrix4(matrix);
 
@@ -118,17 +117,31 @@ class ModelRenderer {
         Blockbench.on('close_project', this.updatePanelSettings.bind(this));
     }
 
-    updateRendering() {
-        if (Project.locatorModels && Project.locatorModels.length > 0) {
-            Project.locatorModels.forEach(model => model.dispose());
-            Project.locatorModels.length = 0;
+    clearAllLocatorInfo() {
+        if (Project.parsedLocators && Project.parsedLocators.length > 0) {
+            Project.parsedLocators.forEach(parsedLocator => {
+                parsedLocator.origin.scale = 1.00;
+                parsedLocator.origin.displayContext = undefined;
+                parsedLocator.origin.projectUUID = undefined;
+                parsedLocator.origin.isItem = false;
+                parsedLocator.origin.model = undefined;
+                parsedLocator.origin = null;
+                parsedLocator.dispose();
+            });
+            Project.parsedLocators.length = 0;
         }
+        Project.parsedLocators = Project.parsedLocators || [];
+    }
 
-        Project.locatorModels = Project.locatorModels || [];
-
+    updateRendering() {
+        if (Project.parsedLocators && Project.parsedLocators.length > 0) {
+            Project.parsedLocators.forEach(parsedLocator => parsedLocator.dispose());
+            Project.parsedLocators.length = 0;
+        }
+        Project.parsedLocators = Project.parsedLocators || [];
         for (const locator of Locator.all) {
             try {
-                Project.locatorModels.push( new LocatorModelParser(locator) );
+                Project.parsedLocators.push( new ParsedLocatorModel(locator) );
             } catch (e) {
                 console.error('Failed to load model:', e);
             }
@@ -137,8 +150,8 @@ class ModelRenderer {
     }
 
     updateModelPositions() {
-        if (!Project.locatorModels) return
-        for (const model of Project.locatorModels) {
+        if (!Project.parsedLocators) return
+        for (const model of Project.parsedLocators) {
             model.setMatrix(model.origin.mesh.matrixWorld);
         }
     }
@@ -148,7 +161,7 @@ class ModelRenderer {
         const self = this;
         this.panel = new Panel(PLUGIN_ID, {
             id: PLUGIN_ID,
-            name: 'Locator Model Renderer',
+            name: 'Locator Model',
             default_position: {
                 slot: 'left_bar',
 				height: 130,
@@ -191,12 +204,20 @@ class ModelRenderer {
                     }
                 },
                 methods: {
+                    clearAll() {
+                        this.locator = undefined;
+                        this.refresh();
+                        self.clearAllLocatorInfo();
+                    },
                     refresh() {
                         this.project =  undefined;
                         this.context = undefined;
                         this.scale = 1.00;
+                        Locator.selected.forEach(locator => { 
+                            locator.unselect();
+                            if(locator.parent.name.startsWith("locator_")) locator.parent.unselect();
+                        });
                         this.updateSettings();
-                        console.log("Locator Model Renderer: Refreshed settings.");
                     },
                     updateValues() {
                         this.project = ModelProject.all.find(p => p.uuid === this.locator?.projectUUID) || undefined;
@@ -208,17 +229,15 @@ class ModelRenderer {
 
                         const testAnim = (name, locatorName) => {// name = animation name, locatorName = locator to check
                             const animation = Animation.all.find(anim => anim.name.endsWith('.' + name));
-                            if (animation) animation.togglePlayingState(
-                                this.locator?.name === locatorName && this.project
-                                ? 'locked'
-                                : false
-                            );
+                            animation?.togglePlayingState(this.locator?.name === locatorName && this.project? 'locked' : false);
                         };
 
                         testAnim('hold_item', 'item');
                         testAnim('wear_hat', 'item_hat');
                     },
                     onProjectSelect() {
+                        this.context = this.project ? Object.values(this.project.display_settings)[0] : undefined;
+                        console.log("Context:", this.context);
                         this.updateSettings();
                     },
                     onContextSelect() {
@@ -235,13 +254,8 @@ class ModelRenderer {
                             else this.locator.select();
                             this.locator.showInOutliner();
                         } 
-                        else {
-                            this.refresh();
-                            Locator.selected.forEach(locator => { 
-                                locator.unselect();
-                                if(locator.parent.name.startsWith("locator_")) locator.parent.unselect();
-                            });
-                        }
+                        else this.refresh();
+
                         this.updateSettings();
                     }, 
                     updateSettings() {
@@ -256,7 +270,7 @@ class ModelRenderer {
 
                             this.locator.projectUUID = this.project?.uuid;
                             this.locator.model = this.project?.model_3d;
-                            this.locator.isItem = this.project?.format.id === 'java_block'
+                            this.locator.isItem = this.isItem;
                             
                             this.locator.displayContext = this.context;
 
@@ -271,9 +285,12 @@ class ModelRenderer {
                     const style = document.createElement('style');
                     style.textContent = `
                         .bedrock-item-renderer label {
-                            width: 100px;
-                            display: inline-block;
+                            display: inline-block;    
                             color: var(--color-subtle_text);
+                        }
+                        .bedrock-item-renderer .inputLabel {
+                            display: inline-flex;
+                            width: 100px;
                         }
                     `;
                     document.head.appendChild(style);
@@ -297,17 +314,14 @@ class ModelRenderer {
             this.vueInstance.locator = Project.selected_elements.find(e => e instanceof Locator) || undefined;
             this.vueInstance.updateValues();
             this.vueInstance.updateSettings();
+
+            if(Project.format.id === "java_block") Canvas.updateAllFaces();// fixes the broken faces on item models
         }
     }
 
     cleanup() {
         this.panel.delete();
-        for (const project of ModelProject.all) {
-            if (project.locatorModels && project.locatorModels.length > 0) {
-                project.locatorModels.forEach(model => model.dispose());
-                project.locatorModels.length = 0;
-            }
-        }
+        this.clearAllLocatorInfo();
     }
 }
 //#endregion
@@ -324,10 +338,10 @@ const PANEL_HTML =
 
     <template v-if="projectType !== 'java_block' && projectType !== 'modded_entity'">
 
-        <div class="inputs" style="display: flex;flex-direction: column; gap: 4px;">
+        <div class="inputs" style="display: flex;flex-direction: column; gap: 4px; margin-right: 20px;">
 
-            <div style="display: inline-flex; flex-direction: row; margin-right: 20px;">
-                <label for="locator">Locator</label>
+            <label>
+                <span class="inputLabel">Locator</span>   
                 <select id="locator" v-model="locator" @change="onLocatorSelect">
                     <option :value="undefined">None</option>
                     <option 
@@ -339,14 +353,14 @@ const PANEL_HTML =
                     </option>
                 </select>
                 <template v-if="isEdited">
-                    <div @click=refresh class="tool head_right"><i class="material-icons">replay</i></div>
-                </template>
-            </div>
+                    <div @click=refresh style="position: fixed;" class="tool head_right" title="Clear Settings"><i class="material-icons">replay</i></div>
+                </template> 
+            </label>
     
             <template v-if="locator">
 
-                <div style="display: inline-flex; flex-direction: row; margin-right: 20px;">
-                    <label for="project">Model Project</label>
+                <label>
+                    <span class="inputLabel">Model Project</span>
                     <select id="project" v-model="project" @change="onProjectSelect">
                         <option :value="undefined">None</option>
                         <option 
@@ -357,11 +371,11 @@ const PANEL_HTML =
                         {{ project.name || 'Untitled' }}
                         </option>
                     </select>
-                </div>
+                </label>
 
                 <template v-if="isItem">
-                    <div style="display: inline-flex; flex-direction: row; margin-right: 20px;">
-                        <label for="context">Context</label>
+                    <label>
+                        <span class="inputLabel">Context</span>
                         <select id="context" v-model="context" @change="onContextSelect">
                             <option :value="undefined">None</option>
                             <option 
@@ -372,29 +386,28 @@ const PANEL_HTML =
                             {{ context.slot_id.toUpperCase() || 'Untitled' }}
                             </option>
                         </select>
-                    </div>
+                    </label>
                 </template>
-
-                <div class="scale" style="display: inline-flex;">
-                    <template v-if="isSeat">
-                        <label for="scale_slider">Base Scale</label>
-                    </template>
-                    <template v-else>
-                        <label for="scale_slider">Scale</label>
-                    </template>
-
+                
+                <label>
+                    <span class="inputLabel">
+                        <template v-if="isSeat">Base Scale</template>
+                        <template v-else>Scale</template>
+                    </span>
                     <div class="bar slider_input_combo" title="Scale">
                         <input type="range" id="scale_slider" v-model.number="scale" class="tool disp_range" style="width: auto; margin-left: 3px;"
                             :min="0.05"
                             :max="4.00"
                             :step="0.01"
-                            value="1.00" @input="onScaleChange">
+                            value="1.00" @dblclick="scale=1.0;onScaleChange();" @input="onScaleChange">
                         <numeric-input id="scale_number" v-model.number="scale" class="tool disp_text" :min="0.05" :max="4.00" :step="0.05" value="1.00" @input="onScaleChange" @change="onScaleChange"/>
                     </div>
-                </div>
+                </label>
 
             </template>
         
+            <input type="button" id="clear_all" value='Clear All' @click="clearAll" title="Clear All" style="background-color: #ffffff0f">
+
         </div>
 
     </template>
@@ -520,7 +533,7 @@ function deleteActionButtons() {
 //#region Register plugin
 BBPlugin.register(PLUGIN_ID, {
     title: 'Locator Model Renderer',
-    author: 'Josh',
+    author: 'joshxviii',
     description: 'Select an open Model Project and render it onto a selected Locator. Plus some other helpful Locator shortcuts.',
     about: 
     `To use this plugin, first open the Model Project that you would like to render another model on.

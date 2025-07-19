@@ -2,7 +2,6 @@ const PLUGIN_ID = 'locator_model_renderer';
 const PLUGIN_VERSION = '1.1.1';
 
 // #region Project Model Parser
-
 class ParsedLocatorModel {
     constructor(locator) {
         this.origin = locator;
@@ -96,8 +95,6 @@ class ParsedLocatorModel {
     //#endregion
 }
 //#endregion
-
-
 
 
 
@@ -328,18 +325,13 @@ class ModelRenderer {
 
 
 
-
-
 //#region Panel HTML
 // Main
 const PANEL_HTML =
 `
 <div class="bedrock-item-renderer" style="margin-left: 20px;">
-
     <template v-if="projectType !== 'java_block' && projectType !== 'modded_entity'">
-
         <div class="inputs" style="display: flex;flex-direction: column; gap: 4px; margin-right: 20px;">
-
             <label>
                 <span class="inputLabel">Locator</span>   
                 <select id="locator" v-model="locator" @change="onLocatorSelect">
@@ -358,7 +350,6 @@ const PANEL_HTML =
             </label>
     
             <template v-if="locator">
-
                 <label>
                     <span class="inputLabel">Model Project</span>
                     <select id="project" v-model="project" @change="onProjectSelect">
@@ -373,50 +364,49 @@ const PANEL_HTML =
                     </select>
                 </label>
 
-                <template v-if="isItem">
+                <template v-if="project">
+                    <template v-if="isItem">
+                        <label>
+                            <span class="inputLabel">Context</span>
+                            <select id="context" v-model="context" @change="onContextSelect">
+                                <option :value="undefined">None</option>
+                                <option 
+                                v-for="context in getContexts" 
+                                :value="context"
+                                :key="context.slot_id"
+                                >
+                                {{ context.slot_id.toUpperCase() || 'Untitled' }}
+                                </option>
+                            </select>
+                        </label>
+                    </template>
+                    
                     <label>
-                        <span class="inputLabel">Context</span>
-                        <select id="context" v-model="context" @change="onContextSelect">
-                            <option :value="undefined">None</option>
-                            <option 
-                            v-for="context in getContexts" 
-                            :value="context"
-                            :key="context.slot_id"
-                            >
-                            {{ context.slot_id.toUpperCase() || 'Untitled' }}
-                            </option>
-                        </select>
+                        <span class="inputLabel">
+                            <template v-if="isSeat">Base Scale</template>
+                            <template v-else>Scale</template>
+                        </span>
+                        <div class="bar slider_input_combo" title="Scale">
+                            <input type="range" id="scale_slider" v-model.number="scale" class="tool disp_range" style="width: auto; margin-left: 3px;"
+                                :min="0.05"
+                                :max="4.00"
+                                :step="0.01"
+                                value="1.00" @dblclick="scale=1.0;onScaleChange();" @input="onScaleChange">
+                            <numeric-input id="scale_number" v-model.number="scale" class="tool disp_text" :min="0.05" :max="4.00" :step="0.05" value="1.00" @input="onScaleChange" @change="onScaleChange"/>
+                        </div>
                     </label>
                 </template>
-                
-                <label>
-                    <span class="inputLabel">
-                        <template v-if="isSeat">Base Scale</template>
-                        <template v-else>Scale</template>
-                    </span>
-                    <div class="bar slider_input_combo" title="Scale">
-                        <input type="range" id="scale_slider" v-model.number="scale" class="tool disp_range" style="width: auto; margin-left: 3px;"
-                            :min="0.05"
-                            :max="4.00"
-                            :step="0.01"
-                            value="1.00" @dblclick="scale=1.0;onScaleChange();" @input="onScaleChange">
-                        <numeric-input id="scale_number" v-model.number="scale" class="tool disp_text" :min="0.05" :max="4.00" :step="0.05" value="1.00" @input="onScaleChange" @change="onScaleChange"/>
-                    </div>
-                </label>
-
             </template>
-        
             <input type="button" id="clear_all" value='Clear All' @click="clearAll" title="Clear All" style="background-color: #ffffff0f">
-
         </div>
-
     </template>
 </div>
 `;
 //#endregion
 
-//#region Action buttons
 
+
+//#region Action buttons
 const universal_locators = [
     "root",
     "top",

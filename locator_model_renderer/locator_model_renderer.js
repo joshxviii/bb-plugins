@@ -220,7 +220,6 @@ class ModelRenderer {
                     },
                     onProjectSelect() {
                         this.updateSettings();
-                        this.updateAnimations();
                     },
                     onContextSelect() {
                         this.updateSettings();
@@ -264,6 +263,7 @@ class ModelRenderer {
                             this.locator.scale = this.scale || 1.00;
                         }
 
+                        this.updateAnimations();
                         self.updateRendering();
                     }
                 },

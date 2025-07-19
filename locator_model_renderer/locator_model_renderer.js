@@ -1,55 +1,54 @@
 const PLUGIN_ID = 'locator_model_renderer';
-const PLUGIN_VERSION = '1.0.0';
+const PLUGIN_VERSION = '1.1.0';
 
 // #region Project Model Parser
 
 class LocatorModelParser {
-    constructor(project) {
-        Project.selectedProject = project;
-        this.selectedModel = null;
+    constructor(locator) {
+        this.origin = locator;
+        this.modelClone = null;
         this.setMatrix();
     }
 
-    setMatrix(matrix = new THREE.Matrix4(), isItemModel = false) {
-        if (!Project.selectedProject) return;
+    setMatrix(matrix = new THREE.Matrix4()) {
         this.dispose();
-        this.selectedModel = Project.selectedProject.model_3d.clone();
-        if (!this.selectedModel) return;
-
+        if (!this.origin.model) return;
+        this.modelClone = this.origin.model.clone();
 
         // apply offset and display context transfromations
-        if(isItemModel) {
-            this.selectedModel.applyMatrix4(new THREE.Matrix4().makeTranslation(-8,-8,-8));
-            if(Project.selectedDisplayContext) this.applyDisplayContext(Project.selectedDisplayContext);
+        if(this.origin.isItem) {
+            this.modelClone.applyMatrix4(new THREE.Matrix4().makeTranslation(-8,-8,-8));
+            this.applyDisplayContext(this.origin.displayContext);
         }
         // apply scale from scale slider
-        let finalScale = /^seat_\d+$/.test(Project.selectedLocator.name)?0.9375/Project.modelScale:Project.modelScale
-        if (Project.modelScale) this.selectedModel.applyMatrix4(new THREE.Matrix4().makeScale(finalScale,finalScale,finalScale));
+        let finalScale = /^seat_\d+$/.test(this.origin.name)?0.9375/this.origin.scale:this.origin.scale
+        if (this.origin.scale) this.modelClone.applyMatrix4(new THREE.Matrix4().makeScale(finalScale,finalScale,finalScale));
 
         // apply locator position and rotation
-        this.selectedModel.applyMatrix4(matrix);
+        this.modelClone.applyMatrix4(matrix);
 
-        Project.model_3d.add(this.selectedModel);
+        Project.model_3d.add(this.modelClone);
     }
 
     // #region Display Context Transformations
     applyDisplayContext(displayContext) {
+        if (!displayContext) return;
         let isLeft = (displayContext.slot_id==="thirdperson_lefthand" || displayContext.slot_id==="firstperson_lefthand"); 
 
         // Apply default display context transforms
-        this.selectedModel.applyMatrix4(new THREE.Matrix4()
+        this.modelClone.applyMatrix4(new THREE.Matrix4()
         .makeScale(
             displayContext.scale[0],
             displayContext.scale[1],
             displayContext.scale[2]
         ));
-        this.selectedModel.applyMatrix4(new THREE.Matrix4()
+        this.modelClone.applyMatrix4(new THREE.Matrix4()
         .makeRotationFromEuler(new THREE.Euler(
             displayContext.rotation[0] * (Math.PI / 180),
             (isLeft?-3:1)*displayContext.rotation[1] * (Math.PI / 180),
             (isLeft?-1:1)*displayContext.rotation[2] * (Math.PI / 180)
         )));
-        this.selectedModel.applyMatrix4(new THREE.Matrix4()
+        this.modelClone.applyMatrix4(new THREE.Matrix4()
         .makeTranslation(
             displayContext.translation[0],
             displayContext.translation[1],
@@ -59,44 +58,43 @@ class LocatorModelParser {
         // Apply Cobblemon specific held item transformations
         switch (displayContext.slot_id) {
             case "fixed":
-                this.selectedModel.applyMatrix4(new THREE.Matrix4()
+                this.modelClone.applyMatrix4(new THREE.Matrix4()
                 .makeScale(.5,.5,.5));
-                this.selectedModel.applyMatrix4(new THREE.Matrix4()
+                this.modelClone.applyMatrix4(new THREE.Matrix4()
                 .makeRotationX(90 * (Math.PI / 180)));
-                this.selectedModel.applyMatrix4(new THREE.Matrix4()
+                this.modelClone.applyMatrix4(new THREE.Matrix4()
                 .makeTranslation(0,.25,0));
                 break;
             case "thirdperson_righthand":
             case "thirdperson_lefthand":
-                this.selectedModel.applyMatrix4(new THREE.Matrix4()
+                this.modelClone.applyMatrix4(new THREE.Matrix4()
                 .makeRotationX(-90 * (Math.PI / 180)));
-                this.selectedModel.applyMatrix4(new THREE.Matrix4()
+                this.modelClone.applyMatrix4(new THREE.Matrix4()
                 .makeRotationZ(90 * (Math.PI / 180)));
-                this.selectedModel.applyMatrix4(new THREE.Matrix4()
+                this.modelClone.applyMatrix4(new THREE.Matrix4()
                 .makeTranslation((isLeft?-1:1),0,0));
                 break;
             case "head":
-                this.selectedModel.applyMatrix4(new THREE.Matrix4()
+                this.modelClone.applyMatrix4(new THREE.Matrix4()
                 .makeScale(.62,.62,.62));
-                if(Project.selectedLocator.name === "item_hat") {
-                    this.selectedModel.applyMatrix4(new THREE.Matrix4()
+                if(this.origin.name === "item_hat") {
+                    this.modelClone.applyMatrix4(new THREE.Matrix4()
                     .makeTranslation(0,-4.25,0));
                 }
-                else if (Project.selectedLocator.name === "item_face") {
-                    this.selectedModel.applyMatrix4(new THREE.Matrix4()
+                else if (this.origin.name === "item_face") {
+                    this.modelClone.applyMatrix4(new THREE.Matrix4()
                     .makeTranslation(0,.5,4.25));
                 }
                 break;
         }
     }
-    //#endregion
 
     dispose() {
-        if(this.selectedModel) {
-            Project.model_3d.remove(this.selectedModel);
-            this.selectedModel = null;
-        }
+        if(this.modelClone) Project.model_3d.remove(this.modelClone);
+        this.modelClone = null;
     }
+
+    //#endregion
 }
 //#endregion
 
@@ -107,16 +105,10 @@ class LocatorModelParser {
 //#region Model Rendering
 class ModelRenderer {
     constructor() {
-        if (Project){
-            Project.selectedProject = null;
-            Project.selectedDisplayContext = null;
-            Project.selectedLocator = null;
-            Project.locatorModel = null;
-            Project.modelScale = 1.0;
-        }
+        this.init()
     }
-
-    async init() {
+    
+    init() {
         this.setupUI();
         this.updateRendering();
         Blockbench.on('render_frame', this.updateModelPositions.bind(this));
@@ -126,45 +118,28 @@ class ModelRenderer {
         Blockbench.on('close_project', this.updatePanelSettings.bind(this));
     }
 
-    async updateRendering() {
-        if (Project.locatorModel) {
-            Project.locatorModel.dispose();
-            delete Project.locatorModel;
+    updateRendering() {
+        if (Project.locatorModels && Project.locatorModels.length > 0) {
+            Project.locatorModels.forEach(model => model.dispose());
+            Project.locatorModels.length = 0;
         }
 
-        if (Project.selectedProject && Project.selectedLocator) {
+        Project.locatorModels = Project.locatorModels || [];
+
+        for (const locator of Locator.all) {
             try {
-                Project.locatorModel = new LocatorModelParser(Project.selectedProject);
-                this.updateModelPositions();
+                Project.locatorModels.push( new LocatorModelParser(locator) );
             } catch (e) {
                 console.error('Failed to load model:', e);
             }
         }
-    }
-
-    // Play and lock item hold animations when rendering a certain locators
-    async updateAnimations() {
-        if (!Animator.open) return;
-
-        const testAnim = (name, locatorName) => {
-            const animation = Animation.all.find(anim => anim.name.endsWith('.' + name));
-            if (animation) {
-            animation.togglePlayingState(
-                Project.selectedProject && Project.selectedLocator?.name === locatorName
-                ? 'locked'
-                : false
-            );
-            animation.pause();
-            }
-        };
-
-        testAnim('hold_item', 'item');
-        testAnim('wear_hat', 'item_hat');
+        this.updateModelPositions();
     }
 
     updateModelPositions() {
-        if (Project.locatorModel && Project.selectedLocator && Project.selectedProject) {
-            if (Project.selectedLocator.mesh) Project.locatorModel.setMatrix(Project.selectedLocator.mesh.matrixWorld, Project.selectedProject.format.id === 'java_block');
+        if (!Project.locatorModels) return
+        for (const model of Project.locatorModels) {
+            model.setMatrix(model.origin.mesh.matrixWorld);
         }
     }
 
@@ -186,78 +161,109 @@ class ModelRenderer {
                 template: PANEL_HTML,
                 data() {
                     return {
-                        projectType: (Project)?Project.format.id:"",
-                        project: Project.selectedProject,
-                        context: Project.selectedDisplayContext,
-                        locator: Project.selectedLocator,
-                        isItem: (Project.selectedProject) ? (Project.selectedProject.format.id === "java_block") : false,
-                        isSeat: (Project.selectedLocator) ? /^seat_\d+$/.test(Project.selectedLocator.name) : false,
-                        scale: (Project.modelScale) ? Project.modelScale : 1.0,
+                        projectType: Project ? Project.format.id : "",
                         projects: ModelProject.all.slice(),
-                        locators: Locator.all.slice()
+                        locators: Locator.all.slice(),
+                        locator: undefined,
+                        project: undefined,
+                        context: undefined,
+                        scale: 1.00,
+                        isItem: false,
+                        isSeat: false,
                     };
                 },
                 computed: {
+                    getContexts() {
+                        return this.project?.display_settings ?? {};
+                    },
                     filteredProjects() {
                         return this.projects.filter(p => p.uuid != Project.uuid);
                     },
-                    getContexts() {
-                        return this.project.display_settings;
-                    },
                     sortedLocators() {
-                        return this.locators.slice().sort((a, b) => {
+                        return this.locators.sort((a, b) => {
                             const nameA = (a.name || 'Untitled').toLowerCase();
                             const nameB = (b.name || 'Untitled').toLowerCase();
                             return nameA.localeCompare(nameB);
-                        });
+                        })
+                    },
+                    isEdited() {
+                        return !(this.project === undefined && this.context === undefined && this.scale == 1.00);
                     }
                 },
                 methods: {
-                    onProjectSelect() {
-                        Project.selectedProject = this.project;
-                        if (this.project) {
-                            this.isItem = (this.project.format.id === "java_block");
-                            if (this.isItem && this.context) if(this.project.display_settings[this.context.slot_id]) Project.selectedDisplayContext = this.project.display_settings[this.context.slot_id];
-                        }
-                        self.updateAnimations();
+                    refresh() {
+                        this.project =  undefined;
+                        this.context = undefined;
+                        this.scale = 1.00;
                         this.updateSettings();
+                        console.log("Locator Model Renderer: Refreshed settings.");
+                    },
+                    updateValues() {
+                        this.project = ModelProject.all.find(p => p.uuid === this.locator?.projectUUID) || undefined;
+                        this.context = this.locator?.displayContext;
+                        this.scale = this.locator?.scale || 1.00;
+                    },
+                    updateAnimations() { // Play and lock item hold animations when rendering a certain locators
+                        if (!Animator.open) return;
+
+                        const testAnim = (name, locatorName) => {// name = animation name, locatorName = locator to check
+                            const animation = Animation.all.find(anim => anim.name.endsWith('.' + name));
+                            if (animation) animation.togglePlayingState(
+                                this.locator?.name === locatorName && this.project
+                                ? 'locked'
+                                : false
+                            );
+                        };
+
+                        testAnim('hold_item', 'item');
+                        testAnim('wear_hat', 'item_hat');
+                    },
+                    onProjectSelect() {
+                        this.updateSettings();
+                        this.updateAnimations();
                     },
                     onContextSelect() {
-                        Project.selectedDisplayContext = this.context;
                         this.updateSettings();
                     },
-                    onLocatorSelect() {
-                        Project.selectedLocator = this.locator;
-                        if(this.locator && this.project) {
-                            this.isSeat =  /^seat_\d+$/.test(this.locator.name); // set scale if seat locator is selected
-                            if ((this.locator.name === "item_hat" || this.locator.name === "item_face") && this.project.display_settings.head) Project.selectedDisplayContext = this.project.display_settings.head;
-                            else if (this.project.display_settings.fixed) Project.selectedDisplayContext = this.project.display_settings.fixed;                            
-                        
-                            if(Project.selectedLocator.parent.name.startsWith("locator_")) Project.selectedLocator.parent.select();
-                            else Project.selectedLocator.select();
-                            Project.selectedLocator.showInOutliner();
+                    onScaleChange() {
+                        this.updateSettings();
+                    },
+                    onLocatorSelect() {                        
+                        if (this.locator) {
+                            this.updateValues();
+
+                            if (this.locator.parent.name.startsWith("locator_")) this.locator.parent.select();
+                            else this.locator.select();
+                            this.locator.showInOutliner();
+                        } 
+                        else {
+                            this.refresh();
+                            Locator.selected.forEach(locator => { 
+                                locator.unselect();
+                                if(locator.parent.name.startsWith("locator_")) locator.parent.unselect();
+                            });
                         }
-                        else Locator.selected.forEach(locator => { 
-                            locator.unselect();
-                            if(locator.parent.name.startsWith("locator_")) locator.parent.unselect();
-                        });
-                        self.updateAnimations();
                         this.updateSettings();
                     }, 
-                    onScaleChange() {
-                        Project.modelScale = this.scale;
-                        this.updateSettings();
-                    },
                     updateSettings() {
                         this.projectType = Project.format.id,
-                        this.project = Project.selectedProject ?? undefined;
-                        this.context = Project.selectedDisplayContext ?? undefined;
-                        this.locator = Project.selectedLocator ?? undefined;
-                        this.isSeat = (Project.selectedLocator) ? /^seat_\d+$/.test(Project.selectedLocator.name) : false;
-                        this.isItem = (Project.selectedProject) ? (Project.selectedProject.format.id === "java_block") : false;
-                        this.scale = (Project.modelScale) ? Project.modelScale : 1.0;
+
                         this.projects = ModelProject.all.slice();
                         this.locators = Locator.all.slice();
+
+                        if (this.locator) {                       
+                            this.isSeat = /^seat_\d+$/.test(this.locator.name);
+                            this.isItem = this.project?.format.id === "java_block" ?? false;
+
+                            this.locator.projectUUID = this.project?.uuid;
+                            this.locator.model = this.project?.model_3d;
+                            this.locator.isItem = this.project?.format.id === 'java_block'
+                            
+                            this.locator.displayContext = this.context;
+
+                            this.locator.scale = this.scale || 1.00;
+                        }
+
                         self.updateRendering();
                     }
                 },
@@ -271,9 +277,6 @@ class ModelRenderer {
                         }
                     `;
                     document.head.appendChild(style);
-                    this.project = Project.selectedProject ?? undefined;
-                    this.context = Project.selectedDisplayContext ?? undefined;
-                    this.locator = Project.selectedLocator ?? undefined;
                     self.vueInstance = this;
                     
                     this.observer = new MutationObserver(() => {
@@ -281,9 +284,7 @@ class ModelRenderer {
                     });
                 },
                 beforeDestroy() {
-                    if (this.observer) {
-                        this.observer.disconnect();
-                    }
+                    if (this.observer) this.observer.disconnect();
                     self.vueInstance = null;
                 }
             })
@@ -292,21 +293,21 @@ class ModelRenderer {
     //#endregion
 
     updatePanelSettings() {
-        if(this.vueInstance) this.vueInstance.updateSettings();
+        if(this.vueInstance) {
+            this.vueInstance.locator = Project.selected_elements.find(e => e instanceof Locator) || undefined;
+            this.vueInstance.updateValues();
+            this.vueInstance.updateSettings();
+        }
     }
 
     cleanup() {
         this.panel.delete();
-        ModelProject.all.forEach(p => {
-            if (p.locatorModel) {
-                p.locatorModel.dispose();
+        for (const project of ModelProject.all) {
+            if (project.locatorModels && project.locatorModels.length > 0) {
+                project.locatorModels.forEach(model => model.dispose());
+                project.locatorModels.length = 0;
             }
-            p.selectedProject = undefined;
-            p.selectedDisplayContext = undefined;
-            p.selectedLocator = undefined;
-            p.locatorModel = undefined;
-            p.modelScale = undefined;
-        })
+        }
     }
 }
 //#endregion
@@ -324,8 +325,8 @@ const PANEL_HTML =
     <template v-if="projectType !== 'java_block' && projectType !== 'modded_entity'">
 
         <div class="inputs" style="display: flex;flex-direction: column; gap: 4px;">
-            
-            <div style="display: inline-block; margin-right: 20px;">
+
+            <div style="display: inline-flex; flex-direction: row; margin-right: 20px;">
                 <label for="locator">Locator</label>
                 <select id="locator" v-model="locator" @change="onLocatorSelect">
                     <option :value="undefined">None</option>
@@ -337,11 +338,14 @@ const PANEL_HTML =
                     {{ locator.name || 'Untitled' }}
                     </option>
                 </select>
+                <template v-if="isEdited">
+                    <div @click=refresh class="tool head_right"><i class="material-icons">replay</i></div>
+                </template>
             </div>
     
             <template v-if="locator">
 
-                <div style="display: inline-block; margin-right: 20px;">
+                <div style="display: inline-flex; flex-direction: row; margin-right: 20px;">
                     <label for="project">Model Project</label>
                     <select id="project" v-model="project" @change="onProjectSelect">
                         <option :value="undefined">None</option>
@@ -356,7 +360,7 @@ const PANEL_HTML =
                 </div>
 
                 <template v-if="isItem">
-                    <div style="display: inline-block; margin-right: 20px;">
+                    <div style="display: inline-flex; flex-direction: row; margin-right: 20px;">
                         <label for="context">Context</label>
                         <select id="context" v-model="context" @change="onContextSelect">
                             <option :value="undefined">None</option>
@@ -399,6 +403,7 @@ const PANEL_HTML =
 //#endregion
 
 //#region Action buttons
+
 const universal_locators = [
     "root",
     "top",
@@ -528,14 +533,18 @@ BBPlugin.register(PLUGIN_ID, {
     min_version: '4.8.0',
     variant: 'both',
     onload() {
+        if (this.renderer) this.renderer.cleanup();
         this.renderer = new ModelRenderer();
-        this.renderer.init();
         createActionButtons();
     },
     onunload() {
         this.renderer.cleanup();
         delete this.renderer;
         deleteActionButtons();
+    },
+    devReload() {
+        if (this.renderer) this.renderer.cleanup();
+        this.renderer = new ModelRenderer();
     }
 });
 //#endregion

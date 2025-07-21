@@ -19,9 +19,11 @@ class ParsedLocatorModel {
             this.modelClone.applyMatrix4(new THREE.Matrix4().makeTranslation(-8,-8,-8));
             this.applyDisplayContext(this.origin.displayContext);
         }
+
         // apply scale from scale slider
         let finalScale = /^seat_\d+$/.test(this.origin.name)?0.9375/this.origin.scale:this.origin.scale
         if (this.origin.scale) this.modelClone.applyMatrix4(new THREE.Matrix4().makeScale(finalScale,finalScale,finalScale));
+        
         // apply locator position and rotation
         this.modelClone.applyMatrix4(matrix);
 
@@ -91,7 +93,6 @@ class ParsedLocatorModel {
         if(this.modelClone) Project.model_3d.remove(this.modelClone);
         this.modelClone = null;
     }
-
     //#endregion
 }
 //#endregion
@@ -234,7 +235,6 @@ class ModelRenderer {
                     },
                     onProjectSelect() {
                         this.context = this.project ? Object.values(this.project.display_settings)[0] : undefined;
-                        console.log("Context:", this.context);
                         this.updateSettings();
                     },
                     onContextSelect() {
@@ -333,7 +333,6 @@ class ModelRenderer {
 
 
 //#region Panel HTML
-// Main
 const PANEL_HTML =
 `
 <div class="bedrock-item-renderer" style="margin-left: 20px;">

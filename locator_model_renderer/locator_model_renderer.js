@@ -285,9 +285,16 @@ class ModelRenderer {
                             display: inline-block;    
                             color: var(--color-subtle_text);
                         }
+                        .bedrock-item-renderer select {
+                            width: 160px;
+                        }
                         .bedrock-item-renderer .inputLabel {
                             display: inline-flex;
-                            width: 100px;
+                            width: 70px;
+                        }
+                        .bedrock-item-renderer #scale_slider {
+                            display: inline-block;
+                            margin-left: -2px;
                         }
                     `;
                     document.head.appendChild(style);
@@ -351,7 +358,7 @@ const PANEL_HTML =
     
             <template v-if="locator">
                 <label>
-                    <span class="inputLabel">Model Project</span>
+                    <span class="inputLabel">Model</span>
                     <select id="project" v-model="project" @change="onProjectSelect">
                         <option :value="undefined">None</option>
                         <option 
@@ -386,8 +393,8 @@ const PANEL_HTML =
                             <template v-if="isSeat">Base Scale</template>
                             <template v-else>Scale</template>
                         </span>
-                        <div class="bar slider_input_combo" title="Scale">
-                            <input type="range" id="scale_slider" v-model.number="scale" class="tool disp_range" style="width: auto; margin-left: 3px;"
+                        <div id="scale_slider" class="bar slider_input_combo" title="Scale">
+                            <input type="range" v-model.number="scale" class="tool disp_range" style="width: 116px; margin-left: 3px;"
                                 :min="0.05"
                                 :max="4.00"
                                 :step="0.01"

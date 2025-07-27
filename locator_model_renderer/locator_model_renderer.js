@@ -1,5 +1,5 @@
 const PLUGIN_ID = 'locator_model_renderer';
-const PLUGIN_VERSION = '1.1.1';
+const PLUGIN_VERSION = '1.1.2';
 
 // #region Project Model Parser
 class ParsedLocatorModel {

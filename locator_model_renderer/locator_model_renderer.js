@@ -229,7 +229,7 @@ class ModelRenderer {
                             const animation = Animation.all.find(anim => anim.name.endsWith('.' + animName));
                             const locator = Project.parsedLocators.find(locators => locators.origin.name === locatorName);
 
-                            animation?.togglePlayingState(locator && this.project? 'locked' : false);// if animation and parsed locatr exist, play the animation.
+                            animation?.togglePlayingState(locator?.modelClone ? 'locked' : false);// if animation and parsed locatr exist, play the animation.
                         };
 
                         playAnimIfLocator('hold_item', 'item');

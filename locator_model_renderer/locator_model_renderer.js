@@ -222,16 +222,18 @@ class ModelRenderer {
                         this.context = this.locator?.displayContext;
                         this.scale = this.locator?.scale || 1.00;
                     },
-                    updateAnimations() { // Play and lock item hold animations when rendering a certain locators
+                    updateAnimations() {
                         if (!Animator.open) return;
 
-                        const testAnim = (name, locatorName) => {// name = animation name, locatorName = locator to check
-                            const animation = Animation.all.find(anim => anim.name.endsWith('.' + name));
-                            animation?.togglePlayingState(this.locator?.name === locatorName && this.project? 'locked' : false);
+                        const playAnimIfLocator = (animName, locatorName) => {
+                            const animation = Animation.all.find(anim => anim.name.endsWith('.' + animName));
+                            const locator = Project.parsedLocators.find(locators => locators.origin.name === locatorName);
+
+                            animation?.togglePlayingState(locator && this.project? 'locked' : false);// if animation and parsed locatr exist, play the animation.
                         };
 
-                        testAnim('hold_item', 'item');
-                        testAnim('wear_hat', 'item_hat');
+                        playAnimIfLocator('hold_item', 'item');
+                        playAnimIfLocator('wear_hat', 'item_hat');
                     },
                     onProjectSelect() {
                         this.context = this.project ? Object.values(this.project.display_settings)[0] : undefined;

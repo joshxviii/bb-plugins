@@ -276,8 +276,8 @@ class ModelRenderer {
                             this.locator.scale = this.scale || 1.00;
                         }
 
-                        this.updateAnimations();
                         self.updateRendering();
+                        this.updateAnimations();
                     }
                 },
                 mounted() {
@@ -549,7 +549,7 @@ BBPlugin.register(PLUGIN_ID, {
         createActionButtons();
     },
     onunload() {
-        this.renderer.cleanup();
+        if (this.renderer) this.renderer.cleanup();
         delete this.renderer;
         deleteActionButtons();
     },

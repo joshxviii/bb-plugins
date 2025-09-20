@@ -132,19 +132,21 @@ class ModelRenderer {
     }
 
     updateRendering() {
-        if (Project.parsedLocators && Project.parsedLocators.length > 0) {
-            Project.parsedLocators.forEach(parsedLocator => parsedLocator.dispose());
-            Project.parsedLocators.length = 0;
-        }
-        Project.parsedLocators = Project.parsedLocators || [];
-        for (const locator of Locator.all) {
-            try {
-                Project.parsedLocators.push( new ParsedLocatorModel(locator) );
-            } catch (e) {
-                console.error('Failed to load model:', e);
+        if (Project) {
+            if (Project.parsedLocators && Project.parsedLocators.length > 0) {
+                Project.parsedLocators.forEach(parsedLocator => parsedLocator.dispose());
+                Project.parsedLocators.length = 0;
             }
+            Project.parsedLocators = Project.parsedLocators || [];
+            for (const locator of Locator.all) {
+                try {
+                    Project.parsedLocators.push( new ParsedLocatorModel(locator) );
+                } catch (e) {
+                    console.error('Failed to load model:', e);
+                }
+            }
+            this.updateModelPositions();
         }
-        this.updateModelPositions();
     }
 
     updateModelPositions() {

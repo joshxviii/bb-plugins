@@ -323,7 +323,7 @@ class ModelRenderer {
             this.vueInstance.updateValues();
             this.vueInstance.updateSettings();
 
-            if(Project.format.id === "java_block") Canvas.updateAllFaces();// fixes the broken faces on item models
+            if(Project.format.id === "java_block") Canvas.updateAllFaces();// fixes the broken faces on item models (Fixed in Blockbench 5.0.7 but keeping for older versions)
         }
     }
 

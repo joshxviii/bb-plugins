@@ -323,7 +323,8 @@ class ModelRenderer {
             this.vueInstance.updateValues();
             this.vueInstance.updateSettings();
 
-            if(Project.format.id === "java_block") Canvas.updateAllFaces();// fixes the broken faces on item models (Fixed in Blockbench 5.0.7 but keeping for older versions)
+            // fixes the broken faces on item models (Fixed in Blockbench 5.0.7 but keeping for older versions)
+            if(Project.format.id === "java_block") Canvas.updateAllFaces();
         }
     }
 
@@ -343,20 +344,22 @@ const PANEL_HTML =
     <template v-if="projectType !== 'java_block' && projectType !== 'modded_entity'">
         <div class="inputs" style="display: flex;flex-direction: column; gap: 4px; margin-right: 20px;">
             <label>
-                <span class="inputLabel">Locator</span>   
-                <select id="locator" v-model="locator" @change="onLocatorSelect">
-                    <option :value="undefined">None</option>
-                    <option 
-                    v-for="locator in sortedLocators" 
-                    :value="locator"
-                    :key="locator.uuid"
-                    >
-                    {{ locator.name || 'Untitled' }}
-                    </option>
-                </select>
-                <template v-if="isEdited">
-                    <div @click=refresh style="position: fixed;" class="tool head_right" title="Clear Settings"><i class="material-icons">replay</i></div>
-                </template> 
+                <span class="inputLabel">Locator</span>
+                <div style="display: flex;">
+                    <select id="locator" v-model="locator" @change="onLocatorSelect">
+                        <option :value="undefined">None</option>
+                        <option 
+                        v-for="locator in sortedLocators" 
+                        :value="locator"
+                        :key="locator.uuid"
+                        >
+                        {{ locator.name || 'Untitled' }}
+                        </option>
+                    </select>
+                    <template v-if="isEdited">
+                        <div @click=refresh class="tool head_right" title="Clear Settings"><i class="material-icons">replay</i></div>
+                    </template> 
+                </div>
             </label>
     
             <template v-if="locator">

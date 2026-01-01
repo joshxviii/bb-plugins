@@ -1,5 +1,5 @@
 const PLUGIN_ID = 'locator_model_renderer';
-const PLUGIN_VERSION = '1.1.2';
+const PLUGIN_VERSION = '1.1.3';
 
 // #region Project Model Parser
 class ParsedLocatorModel {
@@ -343,27 +343,29 @@ const PANEL_HTML =
 <div class="bedrock-item-renderer" style="margin-left: 20px;">
     <template v-if="projectType !== 'java_block' && projectType !== 'modded_entity'">
         <div class="inputs" style="display: flex;flex-direction: column; gap: 4px; margin-right: 20px;">
-            <label>
+            <label style="display: flex; align-items: center;">
+
                 <span class="inputLabel">Locator</span>
-                <div style="display: flex;">
-                    <select id="locator" v-model="locator" @change="onLocatorSelect">
-                        <option :value="undefined">None</option>
-                        <option 
-                        v-for="locator in sortedLocators" 
-                        :value="locator"
-                        :key="locator.uuid"
-                        >
-                        {{ locator.name || 'Untitled' }}
-                        </option>
-                    </select>
-                    <template v-if="isEdited">
-                        <div @click=refresh class="tool head_right" title="Clear Settings"><i class="material-icons">replay</i></div>
-                    </template> 
-                </div>
+                
+                <select id="locator" v-model="locator" @change="onLocatorSelect">
+                    <option :value="undefined">None</option>
+                    <option 
+                    v-for="locator in sortedLocators" 
+                    :value="locator"
+                    :key="locator.uuid"
+                    >
+                    {{ locator.name || 'Untitled' }}
+                    </option>
+                </select>
+
+                <template v-if="isEdited">
+                    <div @click=refresh class="tool head_right" title="clear locator model"><i class="material-icons">replay</i></div>
+                </template> 
+                
             </label>
     
             <template v-if="locator">
-                <label>
+                <label style="display: flex; align-items: center;">
                     <span class="inputLabel">Model</span>
                     <select id="project" v-model="project" @change="onProjectSelect">
                         <option :value="undefined">None</option>
@@ -379,7 +381,7 @@ const PANEL_HTML =
 
                 <template v-if="project">
                     <template v-if="isItem">
-                        <label>
+                        <label style="display: flex; align-items: center;">
                             <span class="inputLabel">Context</span>
                             <select id="context" v-model="context" @change="onContextSelect">
                                 <option :value="undefined">None</option>

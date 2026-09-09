@@ -97,7 +97,10 @@ class ParsedLocatorModel {
 }
 //#endregion
 
-
+function getProjectLocators() {
+    if (!Project) return [];
+    return Project.format.id === 'modded_entity' ? Group.all.filter(g => g.name.startsWith("locator:")) : Locator.all.slice()
+}
 
 //#region Model Rendering
 class ModelRenderer {
@@ -138,7 +141,7 @@ class ModelRenderer {
                 Project.parsedLocators.length = 0;
             }
             Project.parsedLocators = Project.parsedLocators || [];
-            for (const locator of Locator.all) {
+            for (const locator of getProjectLocators()) {
                 try {
                     Project.parsedLocators.push( new ParsedLocatorModel(locator) );
                 } catch (e) {
@@ -176,7 +179,7 @@ class ModelRenderer {
                     return {
                         projectType: Project ? Project.format.id : "",
                         projects: ModelProject.all.slice(),
-                        locators: Locator.all.slice(),
+                        locators: getProjectLocators(),
                         locator: undefined,
                         project: undefined,
                         context: undefined,
@@ -193,7 +196,7 @@ class ModelRenderer {
                         return this.projects.filter(p => p.uuid != Project.uuid);
                     },
                     sortedLocators() {
-                        return this.locators.sort((a, b) => {
+                        return this.locators.slice().sort((a, b) => {
                             const nameA = (a.name || 'Untitled').toLowerCase();
                             const nameB = (b.name || 'Untitled').toLowerCase();
                             return nameA.localeCompare(nameB);
@@ -254,7 +257,7 @@ class ModelRenderer {
                             if (this.locator.parent.name.startsWith("locator_")) this.locator.parent.select();
                             else this.locator.select();
                             this.locator.showInOutliner();
-                        } 
+                        }
                         else this.refresh();
 
                         this.updateSettings();
@@ -263,7 +266,7 @@ class ModelRenderer {
                         this.projectType = Project.format.id,
 
                         this.projects = ModelProject.all.slice();
-                        this.locators = Locator.all.slice();
+                        this.locators = getProjectLocators();
 
                         if (this.locator) {                       
                             this.isSeat = /^seat_\d+$/.test(this.locator.name);
@@ -319,7 +322,9 @@ class ModelRenderer {
 
     updatePanelSettings() {
         if(this.vueInstance) {
-            this.vueInstance.locator = Project.selected_elements.find(e => e instanceof Locator) || undefined;
+            var el = Project.selected_elements.find(e => e instanceof Locator) || Project.selected_groups.find(g => g.name.startsWith("locator:")) || undefined;
+            console.log("Selected element:", el);
+            this.vueInstance.locator = el;
             this.vueInstance.updateValues();
             this.vueInstance.updateSettings();
 
@@ -341,7 +346,7 @@ class ModelRenderer {
 const PANEL_HTML =
 `
 <div class="bedrock-item-renderer" style="margin-left: 20px;">
-    <template v-if="projectType !== 'java_block' && projectType !== 'modded_entity'">
+    <template v-if="projectType !== 'java_block'">
         <div class="inputs" style="display: flex;flex-direction: column; gap: 4px; margin-right: 20px;">
             <label style="display: flex; align-items: center;">
 
